@@ -94,7 +94,9 @@ The work forms part of my broader interest in translating mathematical formulati
 
 ### Demonstration video
 
-> [Insert the completed demonstration video here.]
+<p align="center">
+  <img src="./Greedy_video.gif" alt="Greedy Algorithm Demonstration" width="800">
+</p>
 
 <!-- Paste the actual recording URL on its own line, replacing the placeholder above. -->
 
