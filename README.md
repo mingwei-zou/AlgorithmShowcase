@@ -92,7 +92,7 @@ This project explores how local algorithmic decisions shape a global geometric s
 
 The work forms part of my broader interest in translating mathematical formulations into reliable computational methods.
 
-### Demonstration video
+### Algorithm Visualization
 
 <p align="center">
   <img src="./Greedy_video.gif" alt="Greedy Algorithm Demonstration" width="800">
