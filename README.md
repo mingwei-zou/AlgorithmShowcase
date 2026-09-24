@@ -148,47 +148,143 @@ Use `points1.txt` and `points2.txt` to inspect the base cases, or `points4.txt` 
 ---
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 ## Dynamic Programming
 
 <!-- DYNAMIC-PROGRAMMING:CONTENT:START -->
 
-### Demonstration video
+**3D Surface Reconstruction | Geometric Modeling · Discrete Optimization · Solution Reconstruction**
 
-> [Video placeholder]
+This project connects ordered 3D contours into a triangular surface using dynamic programming. For each adjacent pair of contours, it represents alternative connections as paths through a two-dimensional state space and minimizes their accumulated triangle area.
 
-<!-- Replace the video placeholder with the actual recording URL. -->
+The technical focus is turning a geometric objective into a recurrence, reconstructing the decisions behind the minimum cost, and checking how the resulting mesh relates to the mathematical model.
+
+### Algorithm Visualization
+
+<p align="center">
+  <img src="./dp.gif"
+       alt="Dynamic Programming: Surface Reconstruction from 3D Contours"
+       width="800">
+</p>
+
+The viewer provides two complementary views: the input contours and the surface constructed between them. Computing one contour pair isolates the connection problem; computing all adjacent pairs builds the lateral surface of the supplied femur dataset. Rotation and zoom support inspection of the resulting geometry.
+
+| Visual element | Meaning in the implementation |
+| --- | --- |
+| Contour curves before computation | Ordered input vertices connected around each slice |
+| Shaded triangles after computation | Faces reconstructed by backtracking through the DP decisions |
+| One-pair mode | Two adjacent contours selected for a smaller reconstruction problem |
+| Red, green, and blue axes | The `x`, `y`, and `z` coordinate directions |
 
 ### Problem and objective
 
-> [Placeholder: the problem, inputs, desired output, and constraints.]
+The input is a sequence of closed contours, each represented by an ordered list of 3D vertices. Adjacent contours can contain different numbers of vertices. The task is to connect them with triangles while preserving their cyclic vertex order.
+
+Each triangle advances one edge on either the upper or lower contour and connects that edge to a vertex on the other contour. The objective is to minimize the sum of triangle areas within this connection model.
+
+The implementation first selects the closest cross-contour vertex pair as a starting connection. It then rotates both vertex lists to begin at those vertices and repeats each first vertex at the end to represent a complete circuit. The DP optimum is therefore conditional on this chosen starting connection and the permitted order-preserving steps.
 
 ### Algorithm and implementation
 
-> [Placeholder: the core idea, mathematical formulation, decision rules, and implementation.]
+The algorithm is implemented in [`buildTriangles()` in slices.py](Dynamic%20Programming/slices.py).
+
+1. **Choose the starting connection.** Examine all cross-contour vertex pairs and select the closest pair by Euclidean distance.
+2. **Define the state.** Let `U[0] ... U[m]` and `L[0] ... L[n]` denote the rotated upper and lower contours, with `U[m] = U[0]` and `L[n] = L[0]`. The state `D[r, c]` stores the minimum accumulated area of a partial triangulation ending at the connection between `L[r]` and `U[c]`.
+3. **Compare two predecessor states.** Advance along the lower contour from the previous row, or along the upper contour from the previous column. Each transition adds exactly one triangle.
+4. **Recover the triangles.** Store the selected predecessor in `minDir`, then backtrack from `D[n, m]` to `D[0, 0]` to reconstruct the chosen connections.
+
+Writing `A(a, b, c)` for a triangle's area, the computation is:
+
+```text
+A(a, b, c) = 0.5 * ||(b - a) 脳 (c - a)||
+
+D[0, 0] = 0
+D[0, c] = D[0, c-1] + A(L[0], U[c-1], U[c])
+D[r, 0] = D[r-1, 0] + A(U[0], L[r-1], L[r])
+
+D[r, c] = min(
+    D[r-1, c] + A(U[c], L[r-1], L[r]),
+    D[r, c-1] + A(L[r], U[c-1], U[c])
+)
+```
+
+The boundary formulas apply where only one predecessor exists; the final formula applies when both indices are positive. The row index refers to the lower contour and the column index to the upper contour. Equal candidate costs select the previous column in the current implementation.
+
+This is also a shortest-path problem on a directed acyclic grid: each transition carries a triangle-area cost. Any allowed path reaching a state must arrive through one of its two predecessors. Replacing a non-optimal prefix with a cheaper prefix leaves the same frontier connection, which gives the recurrence its optimal-substructure justification.
+
+| Component | Role |
+| --- | --- |
+| `minArea[r][c]` | Store the minimum accumulated area for a state |
+| `minDir[r][c]` | Record `PREV_ROW` or `PREV_COL` for reconstruction |
+| `triangleArea()` | Calculate area from the magnitude of a cross product |
+| `Triangle` | Store the reconstructed vertices and a normal for rendering |
+| `readSlices()` | Read contours and connect each contour's vertices cyclically |
 
 ### Results and validation
 
-> [Placeholder: the demonstrated output, measured results, and correctness checks.]
+Headless checks executed the uploaded geometry code on both supplied datasets, with graphical initialization omitted and diagnostic printing suppressed. The test harness observed the final DP cost without changing the recurrence or returned triangle list.
+
+| Input | Contours | Input vertices | DP states across adjacent pairs | Triangle output: non-zero + zero area |
+| --- | ---: | ---: | ---: | ---: |
+| `testSlices.dat` | 2 | 8 | 25 | 8 + 1 |
+| `femurSlices.dat` | 61 | 17,960 | 5,839,087 | 35,672 + 60 |
+
+For the small test, all **70 monotone paths** between the chosen endpoints were enumerated independently. Their minimum agreed with the DP result of **960 square coordinate units**, within floating-point tolerance.
+
+Across the test pair and all **60 femur contour pairs**, the reconstructed triangle areas summed to the final DP costs within numerical tolerance. After excluding zero-area faces, each pair produced the expected `m + n` triangles, covered every contour edge once, and used every interior edge twice.
+
+The zero-area counts expose an implementation issue: after backtracking, the code appends one extra triangle whose first and third vertices are identical. Thus, the original function returns 9 triangles for the small test and 35,732 across the femur dataset. These extra faces do not change the area sum. Directed-edge checks also found inconsistent triangle winding, as explained below.
+
+The approximately 5.84 million states are accumulated over separate contour-pair problems; they are not all stored simultaneously. These checks establish the reported numerical and edge-incidence results on the supplied data, rather than a runtime benchmark or a guarantee of a valid surface for arbitrary inputs.
 
 ### Complexity and limitations
 
-> [Placeholder: time and space complexity, assumptions, and trade-offs.]
+For two contours containing `m` and `n` vertices, the closest-pair search and DP table construction each take `O(mn)` time. Backtracking takes `O(m + n)` time. The cost and predecessor tables require `O(mn)` space.
+
+For a sequence of contours, total computational work is proportional to the sum of the products of adjacent contour sizes. Pairs are processed sequentially, so peak DP storage is determined by the largest adjacent pair, alongside storage for input vertices and accumulated triangles.
+
+<details>
+<summary>Optimization scope and current implementation boundaries</summary>
+
+- **Fixed starting connection.** The closest-pair choice is a heuristic. The DP finds a minimum among the monotone paths represented by that choice; it does not search every possible seam or every possible 3D triangulation.
+- **Mesh construction details.** The extra zero-area triangle should be removed because repeating the starting vertices already closes the path. The two backtracking branches also produce inconsistent vertex winding. Shared-edge orientation needs to be made consistent before the mesh can be treated as having coherent outward-facing normals.
+- **Geometric quality.** Minimizing area does not enforce well-shaped triangles or prevent self-intersections. The code connects adjacent contours without constructing end caps or handling contour branching, so it does not guarantee a watertight solid.
+- **Diagnostic overhead.** The current code prints every DP table entry, which adds substantial terminal output on the femur data. The displayed costs are truncated to integers for printing; the optimization itself uses floating-point values.
+
+</details>
+
+The project illustrates how state design and backtracking make a geometric optimization problem computationally tractable, while numerical and structural checks distinguish the optimized objective from the quality of its mesh representation.
 
 ### Run the demonstration
 
-> [Placeholder: source files, dependencies, input data, and run commands.]
+Requires Python 3, PyOpenGL, GLFW, and a desktop environment that supports an OpenGL window. From the repository root, start with the small test:
+
+```bash
+python -m pip install PyOpenGL glfw
+python "Dynamic Programming/slices.py" "Dynamic Programming/testSlices.dat"
+```
+
+For the femur reconstruction:
+
+```bash
+python "Dynamic Programming/slices.py" "Dynamic Programming/femurSlices.dat"
+```
+
+Press **C** in the graphics window to compute the triangulation. To inspect an individual contour pair, enter one-pair mode with **S**, choose a pair with **,** or **.**, then press **C**. Changing the selection does not rebuild an existing mesh; press **C** again to recompute it.
+
+| Control | Behavior |
+| --- | --- |
+| `C` | Compute the selected pair or all adjacent pairs, according to the current mode |
+| `S` | Toggle between one-pair and all-contour mode |
+| `,` / `.` | Move to the previous or next contour pair; the help text labels these `<` / `>` |
+| Left-button drag | Rotate the view |
+| Right-button drag up/down | Zoom |
+| `/` or `?` key | Print the controls in the terminal |
+| `V` / `E` / `T` | Toggle vertex, edge, or triangle labels when optional GLUT font support is enabled |
+| `Esc` | Exit |
+
+Input files begin with a contour count, followed by a vertex count and `x y z` coordinate rows for each contour. GLUT labels are optional; the supplied code leaves `haveGlutForFonts = False`.
+
+*Project context:* Based on [CMPE/CISC 365 Assignment 3](Dynamic%20Programming/A3.txt), using its supplied datasets and visualization framework. The algorithmic work centers on choosing a starting connection, defining and filling the DP tables, and reconstructing triangles from predecessor decisions.
 
 <!-- DYNAMIC-PROGRAMMING:CONTENT:END -->
 
