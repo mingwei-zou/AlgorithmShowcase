@@ -14,37 +14,151 @@ The portfolio focuses on translating mathematical ideas into computational proce
 
 <!-- DIVIDE-AND-CONQUER:CONTENT:START -->
 
-### Demonstration video
+**2D Convex Hull | Computational Geometry · Recursive Decomposition · Geometric Predicates**
 
-> [Video placeholder]
+This project constructs the convex hull of a planar point set through recursive decomposition and geometric merging. It connects a mathematical description of an enclosing boundary with orientation tests, linked data structures, and a visual account of how smaller solutions combine into a larger one.
 
-<!-- Replace the video placeholder with the actual recording URL. -->
+The technical focus is translating geometric reasoning into an executable algorithm whose intermediate states and final output can be inspected.
+
+### Algorithm Visualization
+
+<p align="center">
+  <img src="./DandC.gif"
+       alt="Divide and Conquer: Convex Hull Construction"
+       width="800">
+</p>
+
+<!-- Replace the placeholder with the actual recording URL. -->
+
+The viewer pauses before and after recursive merges, making it possible to examine the two component hulls and their combined boundary. Press **P** in the graphics window to advance through the paused stages.
+
+| Visual element | Meaning in the implementation |
+| --- | --- |
+| Outlined circles | Input points |
+| Yellow highlighting | Points in the current recursive subproblem, or points selected for inspection |
+| Blue arrows | Links stored in `ccwPoint` |
+| Red arrows | Links stored in `cwPoint` |
+
+The arrows expose the underlying data structure: a hull is represented by neighboring-point links in both directions. Intermediate links can remain visible on points excluded from the final hull, as described under implementation limitations below.
 
 ### Problem and objective
 
-> [Placeholder: the problem, inputs, desired output, and constraints.]
+Given a finite set of points in two dimensions, the **convex hull** is the smallest convex set containing them. For a non-collinear input, its boundary is a polygon whose vertices are drawn from the input points; the two-point case reduces to a line segment.
+
+The computational task is to identify these boundary vertices and connect them in order. Interior points remain part of the original dataset but do not belong to the final boundary.
+
+The recursive strategy uses the identity:
+
+```text
+conv(P_L ∪ P_R) = conv(conv(P_L) ∪ conv(P_R))
+```
+
+This means that the two subproblem hulls contain enough information to construct the combined hull. Points strictly inside either subproblem hull cannot become new extreme vertices of the union.
 
 ### Algorithm and implementation
 
-> [Placeholder: the core idea, mathematical formulation, decision rules, and implementation.]
+The implementation in [`main.py`](Divide%20and%20Conquer/main.py) follows three stages:
+
+1. **Divide.** Sort points by increasing `x`, using `y` to break ties. Split the ordered list into two approximately equal halves.
+2. **Conquer.** Recursively construct each half's hull. Two-point and non-collinear three-point cases are handled directly by assigning clockwise and counterclockwise links.
+3. **Combine.** Start at the rightmost point of the left hull and the leftmost point of the right hull. Walk along their boundaries using orientation tests to locate the two connecting tangents, reconnect the surviving boundary chains, and traverse the merged hull.
+
+The geometric decision is based on the signed determinant:
+
+```text
+orient(a, b, c) = (a_x - c_x)(b_y - c_y) - (b_x - c_x)(a_y - c_y)
+```
+
+Its sign identifies a left turn, a right turn, or collinearity in the coordinate system. The `turn()` function supplies this predicate to the base cases and tangent searches.
+
+| Component | Role |
+| --- | --- |
+| `buildHull()` | Handle base cases, divide the point list, and combine recursive results |
+| `turn()` | Convert geometric orientation into a numerical decision |
+| `merge()` | Search for connecting tangents and splice the hull boundaries |
+| `cwPoint` / `ccwPoint` | Store each boundary point's two neighbors |
+| `display()` | Expose intermediate structures before and after merges |
+
+A useful correctness argument follows the same recursive structure: establish the small base cases, assume that the two subproblem hulls are correct, and show that the tangent connections preserve the outer boundary of their union. The visualization supports inspection of these steps; validation of the implementation provides a separate empirical check.
 
 ### Results and validation
 
-> [Placeholder: the demonstrated output, measured results, and correctness checks.]
+The uploaded implementation was evaluated on the repository's five supplied point files. The original geometry functions were executed with rendering disabled, and their returned hull vertex sets were compared with an independently implemented monotone-chain reference algorithm.
+
+| Input | Input points | Returned hull vertices | Vertex-set comparison | Reciprocal hull links |
+| --- | ---: | ---: | --- | --- |
+| `points1.txt` | 2 | 2 | Matched | Passed |
+| `points2.txt` | 3 | 3 | Matched | Passed |
+| `points3.txt` | 10 | 7 | Matched | Passed |
+| `points4.txt` | 66 | 12 | Matched | Passed |
+| `points5.txt` | 50 | 14 | Matched | Passed |
+
+The same comparisons passed with `discardPoints` both disabled and enabled. Reciprocal-link checks confirmed that following a final hull vertex's clockwise link and then its counterclockwise link returns to that vertex, and vice versa.
+
+These results support the returned boundary vertices and link consistency on the supplied inputs. They are not a claim of correctness for every possible point configuration, nor a runtime benchmark.
 
 ### Complexity and limitations
 
-> [Placeholder: time and space complexity, assumptions, and trade-offs.]
+For balanced division and linear-time tangent merging on valid, non-degenerate hulls, the geometric computation follows:
+
+```text
+T(n) = T(⌊n/2⌋) + T(⌈n/2⌉) + O(n) = O(n log n)
+```
+
+Initial sorting also costs `O(n log n)`. Point records, temporary lists, and hull representations use `O(n)` peak storage under this model, with `O(log n)` recursive depth.
+
+**Visualization has a separate cost.** Each call to `display()` redraws every input point. Across the recursion, this can contribute `O(n²)` drawing work, before additional refreshes and user-controlled pauses. The geometric bound therefore should not be interpreted as the elapsed complexity of the interactive demonstration.
+
+<details>
+<summary>Current implementation boundaries</summary>
+
+- The code has no explicit zero-point or one-point base case, and its three-point case does not construct links for collinear points. Duplicate points and other degenerate configurations need additional handling.
+- Orientation uses floating-point arithmetic and an exact zero comparison, so nearly collinear configurations require more robust numerical treatment.
+- The optional `-d` mode attempts to remove obsolete links during merging. Checks on `points3.txt`, `points4.txt`, and `points5.txt` found that some excluded points still retain a link, even though the returned hull vertex sets and reciprocal links pass the checks above. Complete cleanup would require clearing both pointers of every excluded point while preserving the final boundary.
+
+</details>
+
+These distinctions make the project useful for studying the relationship between a mathematical algorithm, its representation in code, and the additional work needed for reliable numerical and visual behavior.
 
 ### Run the demonstration
 
-> [Placeholder: source files, dependencies, input data, and run commands.]
+Requires Python 3, PyOpenGL, GLFW, and a desktop environment that supports an OpenGL window. From the repository root:
+
+```bash
+python -m pip install PyOpenGL glfw
+python "Divide and Conquer/main.py" "Divide and Conquer/points3.txt"
+```
+
+Use `points1.txt` and `points2.txt` to inspect the base cases, or `points4.txt` and `points5.txt` for larger recursive examples. Input files contain one `x y` coordinate pair per line.
+
+| Control or option | Behavior |
+| --- | --- |
+| `P` in the graphics window | Advance past the current pause |
+| Click a point | Print its coordinates and toggle its highlight |
+| `Esc` | Exit |
+| `-np` before the input filename | Disable instructional pauses |
+| `-d` before the input filename | Enable the existing link-discarding logic, subject to the limitation above |
+
+*Project context:* Based on [CMPE/CISC 365 Assignment 1](Divide%20and%20Conquer/A1.txt), using its supplied visualization framework. The algorithmic work centers on convex-hull base cases, recursive construction, and merging through geometric predicates and pointer updates.
 
 <!-- DIVIDE-AND-CONQUER:CONTENT:END -->
 
 [Back to overview](#algorithmshowcase-main)
 
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Dynamic Programming
 
