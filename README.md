@@ -284,8 +284,6 @@ Press **C** in the graphics window to compute the triangulation. To inspect an i
 
 Input files begin with a contour count, followed by a vertex count and `x y z` coordinate rows for each contour. GLUT labels are optional; the supplied code leaves `haveGlutForFonts = False`.
 
-*Project context:* Based on [CMPE/CISC 365 Assignment 3](Dynamic%20Programming/A3.txt), using its supplied datasets and visualization framework. The algorithmic work centers on choosing a starting connection, defining and filling the DP tables, and reconstructing triangles from predecessor decisions.
-
 <!-- DYNAMIC-PROGRAMMING:CONTENT:END -->
 
 [Back to overview](#algorithmshowcase-main)
@@ -399,8 +397,6 @@ python "Greedy Algorithm/tristrips.py" "Greedy Algorithm/data/200"
 ```
 
 Replace the final dataset path with `Greedy Algorithm/data/1000` or `Greedy Algorithm/data/10000` to inspect larger inputs. If the local directory is named `Greedy-Algorithm`, use that spelling in both paths.
-
-*Project context:* Based on [CMPE/CISC 365 Assignment 2](Greedy%20Algorithm/A2.txt), using its supplied visualization framework. The algorithmic focus is the greedy strip-building routine and the interpretation of its results.
 
 <!-- GREEDY-ALGORITHM:CONTENT:END -->
 
